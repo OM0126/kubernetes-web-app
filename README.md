@@ -1,12 +1,70 @@
-\Containerized Web App
+# Containerized Web App
 
-A React web application deployed using Docker and Kubernetes. This README documents the steps followed to run the application locally, build and run it with Docker, and deploy it with Kubernetes using Minikube.
+A React web application that I built and deployed using Docker and Kubernetes.
 
-containerized-web-app/│├── public/├── src/│   ├── assets/│   ├── App.css│   ├── App.jsx│   ├── index.css│   └── main.jsx│├── .dockerignore├── .gitignore├── Dockerfile├── deploy.yaml├── index.html├── package.json├── package-lock.json├── vite.config.js└── README.md
+The main goal of this project was to understand how a normal React application can be built, packaged into a Docker image, run as a container, and then deployed and managed using Kubernetes.
 
+## Tech Stack
+
+- React
+- Vite
+- Node.js
+- Nginx
+- Docker
+- Kubernetes
+- Minikube
+- kubectl
+- Git & GitHub
+
+---
+
+## Project Flow
+
+```text
+React + Vite
+     ↓
+npm run build
+     ↓
+Dockerfile
+     ↓
+Docker Image
+     ↓
+Docker Container
+     ↓
+Minikube
+     ↓
+Kubernetes Deployment
+     ↓
+Kubernetes Pods
+     ↓
+Kubernetes Service
+     ↓
+Browser
+Project Structure
+containerized-web-app/
+│
+├── public/
+├── src/
+│   ├── assets/
+│   ├── App.css
+│   ├── App.jsx
+│   ├── index.css
+│   └── main.jsx
+│
+├── .dockerignore
+├── .gitignore
+├── Dockerfile
+├── deploy.yaml
+├── index.html
+├── package.json
+├── package-lock.json
+├── vite.config.js
+└── README.md
 1. Run the React App Locally
 
-First, clone the project or open the project folder in VS Code.
+First, open the project in VS Code.
+
+Go to the project directory:
 
 cd ~/cal
 
@@ -22,95 +80,109 @@ Vite will show a local URL, usually:
 
 http://localhost:5173/
 
-Open that URL in your browser.
+Open that URL in the browser.
 
-The application can now be developed normally in VS Code.
+At this stage, the application is running directly through the Vite development server.
 
 2. Create the Production Build
 
-Before putting the application into Docker, create the production build.
+Before creating the Docker image, create a production build:
 
 npm run build
 
-Vite creates a dist directory.
+Vite creates a dist directory:
 
 dist/
 
-This directory contains the files that need to be served in production.
+The dist directory contains the production version of the React application.
 
 3. Dockerfile
 
-I used a multi-stage Docker build.
+The project uses a multi-stage Docker build.
 
 The first stage uses Node.js to build the React application.
 
-The second stage uses Nginx to serve the final production files.
+The second stage uses Nginx to serve the production files.
 
-Stage 1: Build React application
-
+# Stage 1: Build React application
 FROM node:22-alpine AS build
 
 WORKDIR /app
 
-Copy package files
-
+# Copy package files
 COPY package*.json ./
 
-Install dependencies
-
+# Install dependencies
 RUN npm ci
 
-Copy application source
-
+# Copy application source
 COPY . .
 
-Build Vite application
-
+# Build Vite application
 RUN npm run build
 
-Stage 2: Serve with Nginx
 
-FROM nginx
+# Stage 2: Serve with Nginx
+FROM nginx:alpine
 
-Remove default Nginx website
-
+# Remove default Nginx website
 RUN rm -rf /usr/share/nginx/html/*
 
-Copy React production build
-
+# Copy React production build
 COPY --from=build /app/dist /usr/share/nginx/html
 
-Expose HTTP
-
+# Expose HTTP
 EXPOSE 80
 
-Start Nginx
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
+Why use two stages?
 
-CMD ["nginx", "-g", "daemon off;"]Why use two stages?
+Node.js is needed to build the React application.
 
-The React application needs Node.js while it is being built.
+After the application is built, Node.js is not required to serve the final website.
 
-After the build is complete, Node.js is no longer needed.
+The final application contains static HTML, CSS and JavaScript files, so Nginx can serve them.
 
-The final application is just static HTML, CSS and JavaScript, so Nginx is enough to serve it.
-
-This also keeps the final Docker image smaller and cleaner.
+This keeps the final Docker image cleaner and smaller.
 
 4. Create .dockerignore
 
-I created a .dockerignore file so unnecessary files are not sent to Docker during the build.
+Create a .dockerignore file:
 
-node_modulesdist.git.gitignoreDockerfileREADME.mdnpm-debug.log
+nano .dockerignore
+
+Add:
+
+node_modules
+dist
+.git
+.gitignore
+Dockerfile
+README.md
+npm-debug.log
+
+This prevents unnecessary files from being sent to Docker during the image build.
 
 5. Build the Docker Image
 
 From the project directory:
 
-docker build -t cal-app .
+docker build -t cal-app:v1 .
 
 Here:
 
-docker build builds the image-t gives the image a name and tagcal-app is the image namev1 is the version. means use the current directory as the build context
+docker build
+
+Builds the Docker image.
+
+-t cal-app:v1
+
+Gives the image the name cal-app and tag v1.
+
+.
+
+Uses the current directory as the Docker build context.
 
 Check the image:
 
@@ -118,27 +190,25 @@ docker images
 
 You should see something similar to:
 
-REPOSITORY   TAGcal-app      v1
-
+REPOSITORY   TAG
+cal-app      v1
 6. Run the Docker Container
 
-Now run the image as a container:
+Run the image:
 
-docker run -d -p 8080:80 --name cal-app cal-app
+docker run -d -p 8080:80 --name cal-app cal-app:v1
 
-Explanation:
+The important part is:
 
--d
+8080:80
 
-Runs the container in the background.
+This maps:
 
--p 8080:80
+localhost:8080
+        ↓
+container port 80
 
-Maps:
-
-localhost:8080↓container port 80--name cal-app
-
-Gives the container a name.
+--name cal-app gives the container a name.
 
 Check the running container:
 
@@ -148,15 +218,15 @@ Open the application:
 
 http://localhost:8080
 
-At this point the React application is running inside Docker.
+At this point, the React application is running inside a Docker container.
 
 7. Stop and Remove the Docker Container
 
-After testing the Docker version, I stopped the standalone container because I wanted Kubernetes to manage the application.
+After testing the Docker version, stop the container:
 
 docker stop cal-app
 
-Remove it:
+Remove the container:
 
 docker rm cal-app
 
@@ -165,10 +235,9 @@ The Docker image is still available.
 Check:
 
 docker images
-
 8. Start Minikube
 
-For Kubernetes, I used Minikube with the Docker driver.
+For Kubernetes, this project uses Minikube with the Docker driver.
 
 Start Minikube:
 
@@ -180,7 +249,10 @@ minikube status
 
 A healthy cluster should show:
 
-host: Runningkubelet: Runningapiserver: Runningkubeconfig: Configured
+host: Running
+kubelet: Running
+apiserver: Running
+kubeconfig: Configured
 
 Check the Kubernetes node:
 
@@ -188,32 +260,61 @@ kubectl get nodes
 
 Expected result:
 
-NAME       STATUS   ROLES           AGE   VERSIONminikube   Ready    control-plane   ...   ...
-
+NAME       STATUS   ROLES           AGE   VERSION
+minikube   Ready    control-plane   ...   ...
 9. Load the Docker Image into Minikube
 
 Because the image was built locally, Minikube needs access to it.
 
-I loaded the image into Minikube:
+Load the image:
 
-minikube image load cal-app
+minikube image load cal-app:v1
 
 Check that the image is available:
 
 minikube image ls | grep cal-app
-
 10. Kubernetes Deployment
 
-I created a file called:
+Create a file called:
 
 deploy.yaml
 
 The Deployment manages the Pods.
 
-apiVersion: apps/v1kind: Deploymentmetadata:name: cal-appspec:replicas: 2selector:matchLabels:app: cal-apptemplate:metadata:labels:app: cal-appspec:containers:- name: cal-appimage: cal-appimagePullPolicy: Neverports:- containerPort: 80
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cal-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cal-app
+  template:
+    metadata:
+      labels:
+        app: cal-app
+    spec:
+      containers:
+        - name: cal-app
+          image: cal-app:v1
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
 
-apiVersion: v1kind: Servicemetadata:name: cal-servicespec:type: NodePortselector:app: cal-appports:- port: 80targetPort: 80nodePort: 30080
-
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cal-service
+spec:
+  type: NodePort
+  selector:
+    app: cal-app
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
 11. Apply the Kubernetes Configuration
 
 Run:
@@ -236,10 +337,10 @@ Kubernetes creates two Pods.
 
 Example:
 
-NAME                       READY   STATUS    RESTARTS   AGEcal-app-xxxxxxxxxx        1/1     Running   0          1mcal-app-yyyyyyyyyy        1/1     Running   0          1m
-
+NAME                       READY   STATUS    RESTARTS   AGE
+cal-app-xxxxxxxxxx        1/1     Running   0          1m
+cal-app-yyyyyyyyyy        1/1     Running   0          1m
 12. Understand the Kubernetes Parts
-
 Deployment
 
 The Deployment manages the application.
@@ -262,7 +363,7 @@ Container
 
 The container runs the Docker image:
 
-cal-app
+cal-app:v1
 
 The container contains the Nginx server and the built React application.
 
@@ -290,7 +391,7 @@ You should see:
 
 cal-service
 
-The easiest way to open the application with Minikube is:
+The easiest way to open the application with Minikube:
 
 minikube service cal-service
 
@@ -342,7 +443,7 @@ Ctrl + C
 
 to stop following the logs.
 
-16. Check Logs From All Calculator Pods
+16. Check Logs From All Pods
 
 Because we have multiple Pods:
 
@@ -351,7 +452,6 @@ kubectl logs -l app=cal-app
 Follow the logs:
 
 kubectl logs -f -l app=cal-app
-
 17. Describe a Pod
 
 If a Pod has a problem:
@@ -360,11 +460,16 @@ kubectl describe pod <pod-name>
 
 This is useful for checking:
 
-Pod eventsContainer statusImage informationRestart countNetworkingScheduling problemsErrors
-
+Pod events
+Container status
+Image information
+Restart count
+Networking
+Scheduling problems
+Errors
 18. Kubernetes Self-Healing
 
-One important thing I tested was Kubernetes self-healing.
+One important thing tested in this project was Kubernetes self-healing.
 
 First check the Pods:
 
@@ -388,7 +493,7 @@ This is one of the main benefits of using Kubernetes.
 
 The Deployment can also be scaled.
 
-For example, increase the number of Pods from 2 to 3:
+Increase the number of Pods from 2 to 3:
 
 kubectl scale deployment cal-app --replicas=3
 
@@ -401,7 +506,6 @@ You should now have three Pods.
 Scale it back:
 
 kubectl scale deployment cal-app --replicas=2
-
 20. Useful Docker Commands
 
 Check running containers:
@@ -418,11 +522,11 @@ docker images
 
 Build an image:
 
-docker build -t cal-app .
+docker build -t cal-app:v1 .
 
 Run a container:
 
-docker run -d -p 8080:80 --name cal-app cal-app
+docker run -d -p 8080:80 --name cal-app cal-app:v1
 
 Stop a container:
 
@@ -434,8 +538,7 @@ docker rm cal-app
 
 Remove an image:
 
-docker rmi cal-app
-
+docker rmi cal-app:v1
 21. Useful Kubernetes Commands
 
 Check cluster:
@@ -477,86 +580,117 @@ kubectl logs -f <pod-name>
 Pod details:
 
 kubectl describe pod <pod-name>
-
-22. Running the Project Again
-
-If the project already exists locally:
-
+22. Run the Project Again
+React Development
 cd ~/cal
+npm install
+npm run dev
 
-For normal React development:
+Open:
 
-npm installnpm run dev
+http://localhost:5173
+Docker
+cd ~/cal
+docker build -t cal-app:v1 .
+docker run -d -p 8080:80 --name cal-app cal-app:v1
 
-For Docker:
+Open:
 
-docker build -t cal-app .docker run -d -p 8080:80 --name cal-app cal-app
-
-For Kubernetes:
-
-minikube startminikube image load cal-appkubectl apply -f deploy.yamlkubectl get podskubectl get svcminikube service cal-service --url
-
+http://localhost:8080
+Kubernetes
+minikube start
+minikube image load cal-app:v1
+kubectl apply -f deploy.yaml
+kubectl get pods
+kubectl get svc
+minikube service cal-service --url
 What I Learned
 
 Through this project I learned how a web application moves from development to deployment.
 
 React / Vite
-
-How to run a React application locallyHow Vite worksHow to create a production buildHow the dist folder is generated
-
+How to run a React application locally
+How Vite works
+How to create a production build
+How the dist folder is generated
 Docker
-
-What a Dockerfile doesHow to create a Docker imageDifference between an image and a containerHow to run a containerHow port mapping worksHow Nginx can serve a React production buildWhy multi-stage Docker builds are usefulHow .dockerignore works
-
+What a Dockerfile does
+How to create a Docker image
+Difference between an image and a container
+How to run a container
+How port mapping works
+How Nginx can serve a React production build
+Why multi-stage Docker builds are useful
+How .dockerignore works
 Kubernetes
-
-What Minikube isWhat kubectl isWhat a Deployment isWhat a Pod isWhat a Service isHow Deployments create PodsHow replicas workHow Kubernetes exposes an applicationHow Kubernetes automatically recreates deleted PodsHow to scale an applicationHow to check Pod logsHow to troubleshoot Pods using kubectl describe
-
+What Minikube is
+What kubectl is
+What a Deployment is
+What a Pod is
+What a Service is
+How Deployments create Pods
+How replicas work
+How Kubernetes exposes an application
+How Kubernetes automatically recreates deleted Pods
+How to scale an application
+How to check Pod logs
+How to troubleshoot Pods using kubectl describe
 Final Architecture
-
-                Developer
-                   │
-                   ▼
-             React + Vite
-                   │
-              npm run build
-                   │
-                   ▼
-                dist/
-                   │
-                   ▼
-              Dockerfile
-                   │
-                   ▼
-            Docker Image
-             cal-app:v1
-                   │
-                   ▼
-            Minikube Image
-                   │
-                   ▼
-         Kubernetes Deployment
-                   │
-          ┌────────┴────────┐
-          ▼                 ▼
-      Pod 1              Pod 2
-    cal-app             cal-app
-          │                 │
-          └────────┬────────┘
-                   ▼
-            Kubernetes Service
-               cal-service
-                   │
-                   ▼
-                NodePort
-                   │
-                   ▼
-                Browser
-
+                    Developer
+                        │
+                        ▼
+                  React + Vite
+                        │
+                        ▼
+                  npm run build
+                        │
+                        ▼
+                      dist/
+                        │
+                        ▼
+                   Dockerfile
+                        │
+                        ▼
+                  Docker Image
+                   cal-app:v1
+                        │
+                        ▼
+                 Minikube Image
+                        │
+                        ▼
+              Kubernetes Deployment
+                        │
+                 ┌──────┴──────┐
+                 ▼             ▼
+              Pod 1          Pod 2
+             cal-app        cal-app
+                 │             │
+                 └──────┬──────┘
+                        ▼
+               Kubernetes Service
+                  cal-service
+                        │
+                        ▼
+                     NodePort
+                        │
+                        ▼
+                     Browser
 Project Goal
 
 The main purpose of this project was to understand the complete basic DevOps deployment flow:
 
-Develop↓Build↓Containerize↓Run↓Deploy↓Monitor↓Scale
+Develop
+   ↓
+Build
+   ↓
+Containerize
+   ↓
+Run
+   ↓
+Deploy
+   ↓
+Monitor
+   ↓
+Scale
 
 This project helped me understand how a normal web application can be packaged with Docker and then managed using Kubernetes.
