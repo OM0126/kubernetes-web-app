@@ -18,7 +18,7 @@ The main goal of this project was to understand how a normal React application c
 
 ---
 
-## Project Flow
+## Project Flow.
 
 ```text
 React + Vite
