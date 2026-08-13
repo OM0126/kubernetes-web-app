@@ -4,7 +4,7 @@ A React web application that I built and deployed using Docker and Kubernetes.
 
 The main goal of this project was to understand how a normal React application can be built, packaged into a Docker image, run as a container, and then deployed and managed using Kubernetes.
 
-## Tech Stack
+## Tech Stack.
 
 - React
 - Vite
