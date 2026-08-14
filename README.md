@@ -1,4 +1,4 @@
-# Containerized Web App
+# Containerized Web App.
 
 A React web application that I built and deployed using Docker and Kubernetes.
 
